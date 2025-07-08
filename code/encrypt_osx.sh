@@ -9,7 +9,7 @@ echo "-------------------------------------"
 
 # 定义变量
 # 统一的 UUID 和密钥获取接口
-KEY_AND_UUID_API_URL="https://enc.api.yangzihome.space" 
+KEY_AND_UUID_API_URL="https://rsa-uuid.api.yangzihome.space" 
 # 新的仅上传 UUID 的接口
 UPLOAD_UUID_API_URL="https://encrypt.yangzihome.space/keygen_uuid.php" 
 

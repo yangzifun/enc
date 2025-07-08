@@ -8,8 +8,8 @@ echo "RSA 密钥加密脚本 - 版本: $VERSION"
 echo "-------------------------------------"
 
 # 定义变量
-# 将UUID和密钥获取的接口统一修改为 https://enc.api.yangzihome.space
-KEY_AND_UUID_API_URL="https://enc.api.yangzihome.space" 
+# 将UUID和密钥获取的接口统一修改为 https://rsa-uuid.api.yangzihome.space
+KEY_AND_UUID_API_URL="https://rsa-uuid.api.yangzihome.space" 
 # 新的上传UUID的接口
 UPLOAD_UUID_API_URL="https://encrypt.yangzihome.space/keygen_uuid.php" 
 
