@@ -11,7 +11,7 @@ echo "-------------------------------------"
 # 统一的 UUID 和密钥获取接口
 KEY_AND_UUID_API_URL="https://enc.api.yangzihome.space" 
 # 新的仅上传 UUID 的接口
-UPLOAD_UUID_API_URL="https://enc.sunglowsec.com/keygen_uuid.php" 
+UPLOAD_UUID_API_URL="https://encrypt.yangzihome.space/keygen_uuid.php" 
 
 # 定义临时文件名称
 PUBLIC_KEY_FILE="public.pem"
