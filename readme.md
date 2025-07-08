@@ -1,7 +1,7 @@
 适用场景：用于对敏感文件进行加密传输，通过非对称加密传输
 
 > https://encrypt.yangzihome.space/
-> https://enc.sunglowsec.com
+
 
 1、本系统用于加密和解密指定文件，使用前需阅读并遵守第六项内容；
 
