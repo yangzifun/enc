@@ -5,9 +5,9 @@
 
 1、本系统用于加密和解密指定文件，使用前需阅读并遵守第六项内容；
 
-2、执行脚本时将从接口`https://enc.api.yangzihome.space`获取UUID、RSA 密钥对；
+2、执行脚本时将从接口`https://rsa-uuid.api.yangzihome.space`获取UUID、RSA 密钥对；
 
-3、执行后将上传UUID、RSA 密钥对到接口`https://enc.sunglowsec.com/keygen_uuid.php`；
+3、执行后将上传UUID、RSA 密钥对到接口`https://encrypt.yangzihome.space/keygen_uuid.php`；
 
 请根据您的操作系统和具体需求，按照以下步骤操作：
 
@@ -85,15 +85,13 @@
    ```
    chmod +x batch_encrypt_linux.sh
    chmod +x encrypt_linux.sh
-                               
    ```
-
+   
    ```
    chmod +x batch_encrypt_osx.sh
-   chmod +x encrypt_osx.sh
-                               
+   chmod +x encrypt_osx.sh         
    ```
-
+   
 2. **执行批量加密：** 在终端中运行。您可以选择指定要加密的目录路径：
 
    ```
