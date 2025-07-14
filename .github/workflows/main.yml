@@ -17,6 +17,10 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
+    # [最终修正 1] 明确授予工作流写入内容的权限，以创建Release。
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,38 +36,23 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # [最终修正] 构建脚本现在会检查图标文件是否存在，如果不存在则不使用--icon参数，避免构建失败。
       - name: Build with PyInstaller
         shell: bash
         run: |
-          echo "Listing files in the current directory:"
-          ls -l
-
           SCRIPT_NAME="encryptor_gui.py"
-
           if [ "${{ runner.os }}" == "Windows" ]; then
-            # 检查 Windows 图标是否存在
             ICON_PARAM=""
             if [ -f "icon.ico" ]; then
-              echo "Found icon.ico, adding it to the build."
               ICON_PARAM="--icon=icon.ico"
-            else
-              echo "icon.ico not found, building with default icon."
             fi
             pyinstaller --name="CryptoApp_Win" --onefile --windowed $ICON_PARAM $SCRIPT_NAME
-
           elif [ "${{ runner.os }}" == "macOS" ]; then
-            # 检查 macOS 图标是否存在
             ICON_PARAM=""
             if [ -f "icon.icns" ]; then
-              echo "Found icon.icns, adding it to the build."
               ICON_PARAM="--icon=icon.icns"
-            else
-              echo "icon.icns not found, building with default icon."
             fi
             pyinstaller --name="CryptoApp_macOS" --onefile --windowed $ICON_PARAM $SCRIPT_NAME
-
-          else # Linux (无图标)
+          else
             pyinstaller --name="CryptoApp_Linux" --onefile --windowed $SCRIPT_NAME
           fi
 
@@ -79,6 +68,13 @@ jobs:
             mv CryptoApp_Linux ../CryptoApp-Linux-x86_64
           fi
           cd ..
+
+      # [最终修正 2] 增加一个验证步骤，确保文件在上传前已准备就绪。
+      - name: Verify prepared artifacts
+        shell: bash
+        run: |
+          echo "Final files prepared for release:"
+          ls -l
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
