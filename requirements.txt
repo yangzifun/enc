@@ -1,9 +1,3 @@
-# 用于发起HTTP网络请求，与API通信
-requests
-
-# 核心加密库，用于实现AES和RSA加密
-cryptography
-
-# 为Tkinter提供跨平台的拖拽功能支持
-tkinterdnd2
-
+requests~=2.32.4
+tkinterdnd2~=0.4.3
+cryptography~=45.0.5
