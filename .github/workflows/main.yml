@@ -10,9 +10,9 @@ on:
 
 jobs:
   build-and-release:
-    # 2. 任务名称
+    # 2. 任务名称，会动态显示当前构建的操作系统
     name: Build on ${{ matrix.os }}
-    
+
     # 3. 矩阵策略：为Windows, macOS, Linux分别运行此任务
     strategy:
       matrix:
@@ -30,9 +30,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # 你可以指定你的Python版本
+          python-version: '3.10' # 您可以根据需要更改Python版本
 
-      # 7. 第三步：安装依赖
+      # 7. 第三步：安装依赖项
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -42,40 +42,58 @@ jobs:
       # 8. 第四步：使用PyInstaller打包
       - name: Build with PyInstaller
         run: |
+          # 增加调试步骤：列出当前目录的文件，以确保脚本存在
+          echo "Listing files in the current directory:"
+          ls -l
+
+          # -------------------- [ 重要：请在这里修改 ] --------------------
+          # 将 'CryptoApp.py' 替换为您实际的主脚本文件名。
+          # 例如：'main.py', 'encryptor_gui.py' 等。
+          SCRIPT_NAME="CryptoApp.py"
+          # -----------------------------------------------------------
+
           # 根据不同操作系统使用不同参数
           if [ "${{ runner.os }}" == "Windows" ]; then
-            pyinstaller --name="CryptoApp_Win" --onefile --windowed --icon="icon.ico" CryptoApp.py
+            pyinstaller --name="CryptoApp_Win" --onefile --windowed --icon="icon.ico" $SCRIPT_NAME
           elif [ "${{ runner.os }}" == "macOS" ]; then
-            pyinstaller --name="CryptoApp_macOS" --onefile --windowed --icon="icon.icns" CryptoApp.py
+            pyinstaller --name="CryptoApp_macOS" --onefile --windowed --icon="icon.icns" $SCRIPT_NAME
           else # Linux
-            pyinstaller --name="CryptoApp_Linux" --onefile --windowed CryptoApp.py
+            # Linux通常不需要指定图标，因为它依赖于.desktop文件
+            pyinstaller --name="CryptoApp_Linux" --onefile --windowed $SCRIPT_NAME
           fi
 
-      # 9. 第五步：准备上传发布的文件
-      # 我们将可执行文件重命名并移动，方便后续定位
+      # 9. 第五步：准备用于发布的文件
+      # 将打包好的可执行文件重命名并移动到根目录，方便下一步上传
       - name: Prepare artifact for release
         shell: bash
         run: |
+          # 进入包含可执行文件的 dist 目录
           cd dist
+          
+          # 根据操作系统重命名并移动文件
           if [ "${{ runner.os }}" == "Windows" ]; then
-            mv CryptoApp_Win.exe ../CryptoApp-Windows-amd64.exe
+            mv CryptoApp_Win.exe ../CryptoApp-Windows-x86_64.exe
           elif [ "${{ runner.os }}" == "macOS" ]; then
             mv CryptoApp_macOS ../CryptoApp-macOS-x86_64
           else # Linux
             mv CryptoApp_Linux ../CryptoApp-Linux-x86_64
           fi
-          cd ..
-          ls -R # 打印文件结构以便调试
 
-      # 10. 第六步：创建Release并将打包文件上传
-      # 使用一个社区验证过的action来处理发布
+          # 返回根目录并列出所有文件，方便调试
+          cd ..
+          echo "Final files prepared for release:"
+          ls -l
+
+      # 10. 第六步：创建Release并将打包文件作为附件上传
+      # 使用一个社区验证过的action来优雅地处理发布
       - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           # `files` 字段告诉action需要上传哪些文件，支持通配符
           files: |
-            CryptoApp-Windows-amd64.exe
+            CryptoApp-Windows-x86_64.exe
             CryptoApp-macOS-x86_64
             CryptoApp-Linux-x86_64
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 这是GitHub自动提供的，无需设置
+          # GITHUB_TOKEN 是由GitHub Actions自动提供的，拥有对仓库的写权限，无需手动设置
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
