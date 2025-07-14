@@ -17,7 +17,7 @@ from cryptography.hazmat.backends import default_backend
 
 # --- 全局常量 ---
 
-VERSION = "v5.0"  # [MODIFIED] 主版本更新，代表重大功能增加
+VERSION = "v1.0"  # [MODIFIED] 版本号更新，代表UX改进
 API_ENDPOINT = "https://rsa-uuid.api.yangzihome.space"
 OPENSSL_SALTED_MAGIC = b'Salted__'
 PBKDF2_ITERATIONS = 10000
@@ -27,12 +27,13 @@ class CryptoApp:
     def __init__(self, root):
         self.root = root
         self.root.title(f"文件加解密工具 {VERSION}")
-        self.root.geometry("550x450")  # 调整窗口大小
+        self.root.geometry("550x450")
         self.root.resizable(False, False)
 
-        # --- 用于解密的状态变量 ---
+        # --- 状态变量 ---
         self.encrypted_file_path = tk.StringVar()
         self.private_key_path = tk.StringVar()
+        self.current_uuid = None  # [NEW] 专门用于存储原始UUID，以便复制
 
         # --- 创建选项卡控制器 ---
         self.notebook = ttk.Notebook(root)
@@ -53,41 +54,67 @@ class CryptoApp:
     # 1. 加密功能相关UI和逻辑
     # =====================================================================
     def create_encrypt_widgets(self):
-        # 拖拽区域
+        # ... (其他UI组件不变) ...
         drop_target_frame = tk.Frame(self.encrypt_tab, relief="sunken", borderwidth=2)
         drop_target_frame.pack(pady=10, padx=10, fill="x", expand=True)
-
         drop_label = tk.Label(drop_target_frame, text="\n将文件拖拽到此处进行加密\n", font=("Arial", 14), fg="grey")
         drop_label.pack(pady=20)
-
-        # 按钮和标签
         select_button = tk.Button(self.encrypt_tab, text="或点击选择加密文件", font=("Arial", 12),
                                   command=self.select_file_to_encrypt)
         select_button.pack(pady=(0, 10))
-
         self.status_label_encrypt = tk.Label(self.encrypt_tab, text="请选择一个文件进行加密", font=("Arial", 10),
                                              fg="blue", wraplength=480)
         self.status_label_encrypt.pack(pady=(5, 5), padx=10)
 
-        self.uuid_label = tk.Label(self.encrypt_tab, text="UUID 将在此处显示", font=("Consolas", 11), fg="navy",
-                                   wraplength=480)
+        # [MODIFIED] UUID 标签现在是可点击的
+        self.uuid_label = tk.Label(
+            self.encrypt_tab,
+            text="UUID 将在此处显示",
+            font=("Consolas", 11),
+            fg="navy",
+            wraplength=480,
+            cursor="hand2"  # 1. 鼠标悬停时显示手形光标
+        )
         self.uuid_label.pack(pady=(5, 5), padx=10)
+        # 2. 绑定点击事件
+        self.uuid_label.bind("<Button-1>", self.copy_uuid_to_clipboard)
 
-        # 绑定拖拽
         drop_target_frame.drop_target_register(DND_FILES)
         drop_label.drop_target_register(DND_FILES)
         drop_target_frame.dnd_bind('<<Drop>>', self.handle_drop_to_encrypt)
         drop_label.dnd_bind('<<Drop>>', self.handle_drop_to_encrypt)
-
-        # 绑定引用以便之后禁用
         self.encrypt_widgets = [select_button, drop_target_frame]
 
+    # [NEW] 用于复制UUID到剪贴板的回调函数
+    def copy_uuid_to_clipboard(self, event):
+        # 3. 检查是否有UUID可供复制
+        if self.current_uuid:
+            self.root.clipboard_clear()  # 清空剪贴板
+            self.root.clipboard_append(self.current_uuid)  # 添加UUID
+
+            # 4. 提供视觉反馈
+            original_text = self.uuid_label.cget("text")  # 保存原始文本
+            self.uuid_label.config(text="已复制到剪贴板!", fg="green")
+            # 2秒后恢复原始文本和颜色
+            self.root.after(2000, lambda: self.uuid_label.config(text=original_text, fg="navy"))
+
+    # [MODIFIED] 更新显示的同时，也更新了用于复制的内部变量
+    def update_uuid_display(self, new_uuid=None):
+        self.current_uuid = new_uuid  # 更新内部变量
+        if new_uuid:
+            self.uuid_label.config(text=f"UUID: {new_uuid}")
+        else:
+            self.uuid_label.config(text="UUID 将在此处显示")
+        self.root.update_idletasks()
+
     def select_file_to_encrypt(self):
+        # ... (此部分无改动) ...
         filepath = filedialog.askopenfilename()
         if filepath:
             self.start_encryption_thread(filepath)
 
     def handle_drop_to_encrypt(self, event):
+        # ... (此部分无改动) ...
         filepath = event.data.strip('{}')
         if os.path.isfile(filepath):
             self.start_encryption_thread(filepath)
@@ -95,31 +122,28 @@ class CryptoApp:
             self.update_status(f"错误: 拖入的不是有效文件: '{filepath}'", "red")
 
     def start_encryption_thread(self, filepath):
+        # ... (此部分无改动) ...
         self.update_uuid_display()
         self.set_encrypt_ui_busy(True)
         thread = threading.Thread(target=self._run_encryption_process, args=(filepath,), daemon=True)
         thread.start()
 
     def set_encrypt_ui_busy(self, is_busy):
+        # ... (此部分无改动) ...
         state = "disabled" if is_busy else "normal"
         for widget in self.encrypt_widgets:
             if isinstance(widget, tk.Button):
                 widget.config(state=state)
-
         if is_busy:
             self.update_status("正在处理，请稍候...", "orange")
-        # re-enable dnd is handled inside start thread. here just disable
 
     def update_status(self, message, color="black"):
+        # ... (此部分无改动) ...
         self.status_label_encrypt.config(text=message, fg=color)
         self.root.update_idletasks()
 
-    def update_uuid_display(self, new_uuid=""):
-        self.uuid_label.config(text=f"UUID: {new_uuid}" if new_uuid else "UUID 将在此处显示")
-        self.root.update_idletasks()
-
     def _run_encryption_process(self, input_file_path):
-        # ... (加密逻辑与之前版本基本一致) ...
+        # ... (此部分无改动，除了调用更新后的update_uuid_display) ...
         try:
             absolute_input_path = os.path.abspath(input_file_path)
             output_file_path = f"{absolute_input_path}.enc"
@@ -166,6 +190,9 @@ class CryptoApp:
             self.set_encrypt_ui_busy(False)
             self.root.after(5000, lambda: self.update_status("请选择或拖拽下一个文件进行加密", "blue"))
 
+    # --- 省略未改变的加密和解密核心逻辑及UI部分 ---
+    # ... (加密和解密的核心算法 _encrypt_data_aes, _get_uuid_and_keys, create_decrypt_widgets, _run_decryption_process 等都保持不变) ...
+    # ... 您可以从上一个版本复制粘贴这部分代码到此处 ...
     def _encrypt_data_aes(self, data, aes_password_str):
         salt = os.urandom(16)
         kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32 + 16, salt=salt, iterations=PBKDF2_ITERATIONS,
@@ -191,7 +218,6 @@ class CryptoApp:
     # 2. 解密功能相关UI和逻辑
     # =====================================================================
     def create_decrypt_widgets(self):
-        # 选择加密文件
         tk.Label(self.decrypt_tab, text="1. 选择加密文件 (.enc):").pack(anchor="w", pady=(10, 0))
         frame_enc = tk.Frame(self.decrypt_tab)
         frame_enc.pack(fill="x")
@@ -199,7 +225,6 @@ class CryptoApp:
                                                                                           fill="x", padx=(0, 5))
         tk.Button(frame_enc, text="选择...", command=self.select_encrypted_file).pack(side="right")
 
-        # 选择私钥文件
         tk.Label(self.decrypt_tab, text="2. 选择私钥文件 (.pem, .key, etc.):").pack(anchor="w", pady=(20, 0))
         frame_key = tk.Frame(self.decrypt_tab)
         frame_key.pack(fill="x")
@@ -207,12 +232,10 @@ class CryptoApp:
                                                                                        fill="x", padx=(0, 5))
         tk.Button(frame_key, text="选择...", command=self.select_private_key).pack(side="right")
 
-        # 解密按钮
         self.decrypt_button = tk.Button(self.decrypt_tab, text="开始解密", font=("Arial", 14),
                                         command=self.start_decryption_thread)
         self.decrypt_button.pack(side="bottom", pady=20, fill="x")
 
-        # 状态标签
         self.status_label_decrypt = tk.Label(self.decrypt_tab, text="请选择加密文件和私钥", font=("Arial", 10),
                                              fg="blue", wraplength=480)
         self.status_label_decrypt.pack(side="bottom", pady=10)
@@ -246,14 +269,12 @@ class CryptoApp:
 
     def _run_decryption_process(self, private_key_path, input_file_path):
         try:
-            # 1. 读取私钥
             self.update_decrypt_status("步骤 1/4: 加载私钥...", "orange")
             if not os.path.exists(private_key_path): raise FileNotFoundError(f"私钥文件不存在: {private_key_path}")
             with open(private_key_path, 'rb') as key_file:
                 private_key = serialization.load_pem_private_key(key_file.read(), password=None,
                                                                  backend=default_backend())
 
-            # 2. 解析加密文件
             self.update_decrypt_status("步骤 2/4: 解析加密文件...", "orange")
             if not os.path.exists(input_file_path): raise FileNotFoundError(f"加密文件不存在: {input_file_path}")
             with open(input_file_path, 'r') as f:
@@ -277,7 +298,6 @@ class CryptoApp:
             encrypted_data_base64 = "".join(parts.get("ENCRYPTED_DATA", []))
             if not encrypted_key_base64 or not encrypted_data_base64: raise ValueError("加密文件格式不正确")
 
-            # 3. RSA 解密 AES 密钥
             self.update_decrypt_status("步骤 3/4: RSA解密AES密钥...", "orange")
             encrypted_aes_key_bytes = base64.b64decode(encrypted_key_base64)
             decrypted_aes_password_bytes = private_key.decrypt(encrypted_aes_key_bytes,
@@ -285,12 +305,10 @@ class CryptoApp:
                                                                             algorithm=hashes.SHA256(), label=None))
             aes_password_b64_str = decrypted_aes_password_bytes.decode('utf-8')
 
-            # 4. AES 解密数据
             self.update_decrypt_status("步骤 4/4: AES解密文件内容...", "orange")
             encrypted_file_content_with_salt = base64.b64decode(encrypted_data_base64)
             decrypted_content = self._decrypt_data_aes(encrypted_file_content_with_salt, aes_password_b64_str)
 
-            # 5. 写入解密后的文件
             output_file_path = input_file_path.replace(".enc", "") if input_file_path.endswith(
                 ".enc") else f"{input_file_path}.dec"
             with open(output_file_path, 'wb') as f:
@@ -329,4 +347,3 @@ if __name__ == "__main__":
     root = TkinterDnD.Tk()
     app = CryptoApp(root)
     root.mainloop()
-
