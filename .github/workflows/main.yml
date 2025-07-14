@@ -1,0 +1,81 @@
+# .github/workflows/release.yml
+
+name: Build and Release Executables
+
+# 1. 触发条件：当创建一个以 'v' 开头的标签时（例如 v1.0, v5.2），此工作流启动。
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    # 2. 任务名称
+    name: Build on ${{ matrix.os }}
+    
+    # 3. 矩阵策略：为Windows, macOS, Linux分别运行此任务
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    # 4. 指定运行环境
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # 5. 第一步：检出（获取）你的代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 6. 第二步：设置Python环境
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10' # 你可以指定你的Python版本
+
+      # 7. 第三步：安装依赖
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # 8. 第四步：使用PyInstaller打包
+      - name: Build with PyInstaller
+        run: |
+          # 根据不同操作系统使用不同参数
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            pyinstaller --name="CryptoApp_Win" --onefile --windowed --icon="icon.ico" CryptoApp.py
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            pyinstaller --name="CryptoApp_macOS" --onefile --windowed --icon="icon.icns" CryptoApp.py
+          else # Linux
+            pyinstaller --name="CryptoApp_Linux" --onefile --windowed CryptoApp.py
+          fi
+
+      # 9. 第五步：准备上传发布的文件
+      # 我们将可执行文件重命名并移动，方便后续定位
+      - name: Prepare artifact for release
+        shell: bash
+        run: |
+          cd dist
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            mv CryptoApp_Win.exe ../CryptoApp-Windows-amd64.exe
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            mv CryptoApp_macOS ../CryptoApp-macOS-x86_64
+          else # Linux
+            mv CryptoApp_Linux ../CryptoApp-Linux-x86_64
+          fi
+          cd ..
+          ls -R # 打印文件结构以便调试
+
+      # 10. 第六步：创建Release并将打包文件上传
+      # 使用一个社区验证过的action来处理发布
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          # `files` 字段告诉action需要上传哪些文件，支持通配符
+          files: |
+            CryptoApp-Windows-amd64.exe
+            CryptoApp-macOS-x86_64
+            CryptoApp-Linux-x86_64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 这是GitHub自动提供的，无需设置
