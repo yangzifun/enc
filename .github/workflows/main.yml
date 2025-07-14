@@ -39,7 +39,7 @@ jobs:
       - name: Build with PyInstaller
         shell: bash
         run: |
-          SCRIPT_NAME="encryptor_gui.py"
+          SCRIPT_NAME="cryptor_gui.py"
           if [ "${{ runner.os }}" == "Windows" ]; then
             ICON_PARAM=""
             if [ -f "icon.ico" ]; then

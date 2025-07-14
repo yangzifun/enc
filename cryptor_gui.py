@@ -7,6 +7,9 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from tkinterdnd2 import DND_FILES, TkinterDnD
 import datetime
+import zipfile  # [NEW] 引入zipfile库，用于处理压缩包
+import shutil  # [NEW] 引入shutil库，方便地创建压缩包
+import io  # [NEW] 引入io库，用于在内存中处理解压后的数据
 
 # 引入核心加密/解密库
 from cryptography.hazmat.primitives import serialization, hashes
@@ -17,23 +20,24 @@ from cryptography.hazmat.backends import default_backend
 
 # --- 全局常量 ---
 
-VERSION = "v1.0"  # [MODIFIED] 版本号更新，代表UX改进
+VERSION = "v1.1"  # [MODIFIED] 版本号更新，代表功能增强
 API_ENDPOINT = "https://rsa-uuid.api.yangzihome.space"
 OPENSSL_SALTED_MAGIC = b'Salted__'
 PBKDF2_ITERATIONS = 10000
+ZIP_MAGIC_BYTES = b'PK\x03\x04'  # [NEW] ZIP文件的起始魔术字节，用于识别
 
 
 class CryptoApp:
     def __init__(self, root):
         self.root = root
-        self.root.title(f"文件加解密工具 {VERSION}")
+        self.root.title(f"文件/文件夹加解密工具 {VERSION}")  # [MODIFIED] 标题更新
         self.root.geometry("550x450")
         self.root.resizable(False, False)
 
         # --- 状态变量 ---
         self.encrypted_file_path = tk.StringVar()
         self.private_key_path = tk.StringVar()
-        self.current_uuid = None  # [NEW] 专门用于存储原始UUID，以便复制
+        self.current_uuid = None
 
         # --- 创建选项卡控制器 ---
         self.notebook = ttk.Notebook(root)
@@ -54,82 +58,89 @@ class CryptoApp:
     # 1. 加密功能相关UI和逻辑
     # =====================================================================
     def create_encrypt_widgets(self):
-        # ... (其他UI组件不变) ...
+        # [MODIFIED] UI文本更新，以反映对文件夹的支持
         drop_target_frame = tk.Frame(self.encrypt_tab, relief="sunken", borderwidth=2)
         drop_target_frame.pack(pady=10, padx=10, fill="x", expand=True)
-        drop_label = tk.Label(drop_target_frame, text="\n将文件拖拽到此处进行加密\n", font=("Arial", 14), fg="grey")
+        drop_label = tk.Label(drop_target_frame, text="\n将文件或文件夹拖拽到此处进行加密\n", font=("Arial", 14),
+                              fg="grey")
         drop_label.pack(pady=20)
-        select_button = tk.Button(self.encrypt_tab, text="或点击选择加密文件", font=("Arial", 12),
-                                  command=self.select_file_to_encrypt)
-        select_button.pack(pady=(0, 10))
-        self.status_label_encrypt = tk.Label(self.encrypt_tab, text="请选择一个文件进行加密", font=("Arial", 10),
+
+        button_frame = tk.Frame(self.encrypt_tab)
+        button_frame.pack(pady=(0, 10))
+
+        select_file_button = tk.Button(button_frame, text="选择加密文件", font=("Arial", 12),
+                                       command=self.select_file_to_encrypt)
+        select_file_button.pack(side="left", padx=5)
+
+        select_folder_button = tk.Button(button_frame, text="选择加密文件夹", font=("Arial", 12),
+                                         command=self.select_folder_to_encrypt)  # [NEW] 新增选择文件夹按钮
+        select_folder_button.pack(side="left", padx=5)
+
+        self.status_label_encrypt = tk.Label(self.encrypt_tab, text="请选择一个文件或文件夹进行加密",
+                                             font=("Arial", 10),
                                              fg="blue", wraplength=480)
         self.status_label_encrypt.pack(pady=(5, 5), padx=10)
 
-        # [MODIFIED] UUID 标签现在是可点击的
         self.uuid_label = tk.Label(
             self.encrypt_tab,
             text="UUID 将在此处显示",
             font=("Consolas", 11),
             fg="navy",
             wraplength=480,
-            cursor="hand2"  # 1. 鼠标悬停时显示手形光标
+            cursor="hand2"
         )
         self.uuid_label.pack(pady=(5, 5), padx=10)
-        # 2. 绑定点击事件
         self.uuid_label.bind("<Button-1>", self.copy_uuid_to_clipboard)
 
         drop_target_frame.drop_target_register(DND_FILES)
         drop_label.drop_target_register(DND_FILES)
         drop_target_frame.dnd_bind('<<Drop>>', self.handle_drop_to_encrypt)
         drop_label.dnd_bind('<<Drop>>', self.handle_drop_to_encrypt)
-        self.encrypt_widgets = [select_button, drop_target_frame]
+        self.encrypt_widgets = [select_file_button, select_folder_button, drop_target_frame]
 
-    # [NEW] 用于复制UUID到剪贴板的回调函数
     def copy_uuid_to_clipboard(self, event):
-        # 3. 检查是否有UUID可供复制
         if self.current_uuid:
-            self.root.clipboard_clear()  # 清空剪贴板
-            self.root.clipboard_append(self.current_uuid)  # 添加UUID
-
-            # 4. 提供视觉反馈
-            original_text = self.uuid_label.cget("text")  # 保存原始文本
+            self.root.clipboard_clear()
+            self.root.clipboard_append(self.current_uuid)
+            original_text = self.uuid_label.cget("text")
             self.uuid_label.config(text="已复制到剪贴板!", fg="green")
-            # 2秒后恢复原始文本和颜色
             self.root.after(2000, lambda: self.uuid_label.config(text=original_text, fg="navy"))
 
-    # [MODIFIED] 更新显示的同时，也更新了用于复制的内部变量
     def update_uuid_display(self, new_uuid=None):
-        self.current_uuid = new_uuid  # 更新内部变量
+        self.current_uuid = new_uuid
         if new_uuid:
             self.uuid_label.config(text=f"UUID: {new_uuid}")
         else:
             self.uuid_label.config(text="UUID 将在此处显示")
         self.root.update_idletasks()
 
+    # [MODIFIED] 将文件和文件夹选择分开，逻辑更清晰
     def select_file_to_encrypt(self):
-        # ... (此部分无改动) ...
         filepath = filedialog.askopenfilename()
         if filepath:
             self.start_encryption_thread(filepath)
 
-    def handle_drop_to_encrypt(self, event):
-        # ... (此部分无改动) ...
-        filepath = event.data.strip('{}')
-        if os.path.isfile(filepath):
-            self.start_encryption_thread(filepath)
-        else:
-            self.update_status(f"错误: 拖入的不是有效文件: '{filepath}'", "red")
+    def select_folder_to_encrypt(self):  # [NEW] 处理文件夹选择的函数
+        folderpath = filedialog.askdirectory()
+        if folderpath:
+            self.start_encryption_thread(folderpath)
 
-    def start_encryption_thread(self, filepath):
-        # ... (此部分无改动) ...
+    def handle_drop_to_encrypt(self, event):
+        # [MODIFIED] 现在可以处理文件和文件夹的拖拽
+        path = event.data.strip('{}')
+        if os.path.exists(path):  # 检查路径是否存在即可
+            print(f"Path dropped: {path}")
+            self.start_encryption_thread(path)
+        else:
+            self.update_status(f"错误: 拖入的路径无效: '{path}'", "red")
+
+    def start_encryption_thread(self, path):
         self.update_uuid_display()
         self.set_encrypt_ui_busy(True)
-        thread = threading.Thread(target=self._run_encryption_process, args=(filepath,), daemon=True)
+        thread = threading.Thread(target=self._run_encryption_process, args=(path,), daemon=True)
         thread.start()
 
     def set_encrypt_ui_busy(self, is_busy):
-        # ... (此部分无改动) ...
         state = "disabled" if is_busy else "normal"
         for widget in self.encrypt_widgets:
             if isinstance(widget, tk.Button):
@@ -138,37 +149,56 @@ class CryptoApp:
             self.update_status("正在处理，请稍候...", "orange")
 
     def update_status(self, message, color="black"):
-        # ... (此部分无改动) ...
         self.status_label_encrypt.config(text=message, fg=color)
         self.root.update_idletasks()
 
-    def _run_encryption_process(self, input_file_path):
-        # ... (此部分无改动，除了调用更新后的update_uuid_display) ...
+    def _run_encryption_process(self, input_path):
+        # [MODIFIED] 核心加密流程，现在能处理文件和文件夹
+        temp_zip_path = None
+        is_folder = os.path.isdir(input_path)
         try:
-            absolute_input_path = os.path.abspath(input_file_path)
+            absolute_input_path = os.path.abspath(input_path)
+
+            # --- 如果是文件夹，先打包成ZIP ---
+            if is_folder:
+                self.update_status("步骤 1/6: 正在归档文件夹...", "orange")
+                # 使用 shutil.make_archive 来创建zip，它会自动处理子目录
+                # 我们将zip创建在与源文件夹同级目录下，并命名为与源文件夹同名
+                temp_zip_path = shutil.make_archive(base_name=absolute_input_path, format='zip',
+                                                    root_dir=absolute_input_path)
+                file_to_encrypt = temp_zip_path
+                self.update_status(f"步骤 2/6: 获取密钥...", "orange")
+            else:
+                file_to_encrypt = absolute_input_path
+                self.update_status(f"步骤 1/5: 获取密钥...", "orange")
+
             output_file_path = f"{absolute_input_path}.enc"
-            self.update_status("步骤 1/5: 获取密钥...", "orange")
+
             generated_uuid, public_key_pem, _ = self._get_uuid_and_keys()
             public_key = serialization.load_pem_public_key(public_key_pem.encode('utf-8'), backend=default_backend())
 
-            self.update_status(f"步骤 2/5: 读取文件...", "orange")
-            with open(absolute_input_path, 'rb') as f:
+            step = 3 if is_folder else 2
+            self.update_status(f"步骤 {step}/{6 if is_folder else 5}: 读取文件...", "orange")
+            with open(file_to_encrypt, 'rb') as f:
                 file_content = f.read()
 
-            self.update_status("步骤 3/5: AES加密...", "orange")
+            step += 1
+            self.update_status(f"步骤 {step}/{6 if is_folder else 5}: AES加密...", "orange")
             raw_aes_key_bytes = os.urandom(32)
             aes_password_b64_str = base64.b64encode(raw_aes_key_bytes).decode('utf-8').rstrip('=')
             encrypted_file_content_with_salt = self._encrypt_data_aes(file_content, aes_password_b64_str)
             encrypted_data_base64 = base64.b64encode(encrypted_file_content_with_salt).decode('utf-8')
 
-            self.update_status("步骤 4/5: RSA加密密钥...", "orange")
+            step += 1
+            self.update_status(f"步骤 {step}/{6 if is_folder else 5}: RSA加密密钥...", "orange")
             encrypted_key_base64 = base64.b64encode(public_key.encrypt(aes_password_b64_str.encode('utf-8'),
                                                                        padding.OAEP(
                                                                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
                                                                            algorithm=hashes.SHA256(),
                                                                            label=None))).decode('utf-8')
 
-            self.update_status(f"步骤 5/5: 写入文件...", "orange")
+            step += 1
+            self.update_status(f"步骤 {step}/{6 if is_folder else 5}: 写入文件...", "orange")
             with open(output_file_path, 'w') as f:
                 f.write(f"---BEGIN_AES_KEY---\n{encrypted_key_base64}\n---END_AES_KEY---\n"
                         f"---BEGIN_ENCRYPTED_DATA---\n{encrypted_data_base64}\n---END_ENCRYPTED_DATA---\n"
@@ -176,23 +206,24 @@ class CryptoApp:
 
             with open("log.txt", 'a', encoding='utf-8') as f:
                 f.write(
-                    f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ENCRYPT | File: {output_file_path} | UUID: {generated_uuid}\n")
+                    f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] ENCRYPT | Path: {output_file_path} | UUID: {generated_uuid}\n")
 
-            success_status = f"加密成功! 文件已保存为: '{os.path.basename(output_file_path)}'"
+            success_status = f"加密成功! 已保存为: '{os.path.basename(output_file_path)}'"
             self.update_status(success_status, "green")
             self.update_uuid_display(generated_uuid)
-            messagebox.showinfo("成功", f"文件加密成功！\n\n输出文件: {output_file_path}")
+            messagebox.showinfo("成功", f"加密成功！\n\n输出文件: {output_file_path}")
+
         except Exception as e:
             self.update_status(f"加密错误: {e}", "red")
             self.update_uuid_display()
             messagebox.showerror("错误", f"加密过程中发生错误:\n{e}")
         finally:
+            # [NEW] 清理临时的ZIP文件
+            if temp_zip_path and os.path.exists(temp_zip_path):
+                os.remove(temp_zip_path)
             self.set_encrypt_ui_busy(False)
-            self.root.after(5000, lambda: self.update_status("请选择或拖拽下一个文件进行加密", "blue"))
+            self.root.after(5000, lambda: self.update_status("请选择或拖拽下一个文件/文件夹进行加密", "blue"))
 
-    # --- 省略未改变的加密和解密核心逻辑及UI部分 ---
-    # ... (加密和解密的核心算法 _encrypt_data_aes, _get_uuid_and_keys, create_decrypt_widgets, _run_decryption_process 等都保持不变) ...
-    # ... 您可以从上一个版本复制粘贴这部分代码到此处 ...
     def _encrypt_data_aes(self, data, aes_password_str):
         salt = os.urandom(16)
         kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32 + 16, salt=salt, iterations=PBKDF2_ITERATIONS,
@@ -215,7 +246,7 @@ class CryptoApp:
             raise RuntimeError(f"网络或API错误: {e}")
 
     # =====================================================================
-    # 2. 解密功能相关UI和逻辑
+    # 2. 解密功能相关UI和逻辑 (未改变的部分已折叠)
     # =====================================================================
     def create_decrypt_widgets(self):
         tk.Label(self.decrypt_tab, text="1. 选择加密文件 (.enc):").pack(anchor="w", pady=(10, 0))
@@ -268,14 +299,15 @@ class CryptoApp:
         thread.start()
 
     def _run_decryption_process(self, private_key_path, input_file_path):
+        # [MODIFIED] 解密流程现在能自动识别和解压文件夹
         try:
-            self.update_decrypt_status("步骤 1/4: 加载私钥...", "orange")
+            self.update_decrypt_status("步骤 1/5: 加载私钥...", "orange")
             if not os.path.exists(private_key_path): raise FileNotFoundError(f"私钥文件不存在: {private_key_path}")
             with open(private_key_path, 'rb') as key_file:
                 private_key = serialization.load_pem_private_key(key_file.read(), password=None,
                                                                  backend=default_backend())
 
-            self.update_decrypt_status("步骤 2/4: 解析加密文件...", "orange")
+            self.update_decrypt_status("步骤 2/5: 解析加密文件...", "orange")
             if not os.path.exists(input_file_path): raise FileNotFoundError(f"加密文件不存在: {input_file_path}")
             with open(input_file_path, 'r') as f:
                 content = f.read()
@@ -298,27 +330,46 @@ class CryptoApp:
             encrypted_data_base64 = "".join(parts.get("ENCRYPTED_DATA", []))
             if not encrypted_key_base64 or not encrypted_data_base64: raise ValueError("加密文件格式不正确")
 
-            self.update_decrypt_status("步骤 3/4: RSA解密AES密钥...", "orange")
+            self.update_decrypt_status("步骤 3/5: RSA解密AES密钥...", "orange")
             encrypted_aes_key_bytes = base64.b64decode(encrypted_key_base64)
             decrypted_aes_password_bytes = private_key.decrypt(encrypted_aes_key_bytes,
                                                                padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),
                                                                             algorithm=hashes.SHA256(), label=None))
             aes_password_b64_str = decrypted_aes_password_bytes.decode('utf-8')
 
-            self.update_decrypt_status("步骤 4/4: AES解密文件内容...", "orange")
+            self.update_decrypt_status("步骤 4/5: AES解密文件内容...", "orange")
             encrypted_file_content_with_salt = base64.b64decode(encrypted_data_base64)
             decrypted_content = self._decrypt_data_aes(encrypted_file_content_with_salt, aes_password_b64_str)
 
-            output_file_path = input_file_path.replace(".enc", "") if input_file_path.endswith(
-                ".enc") else f"{input_file_path}.dec"
-            with open(output_file_path, 'wb') as f:
-                f.write(decrypted_content)
+            self.update_decrypt_status("步骤 5/5: 智能写入文件/文件夹...", "orange")
 
-            self.update_decrypt_status(f"解密成功! 已保存为 {os.path.basename(output_file_path)}", "green")
-            messagebox.showinfo("成功", f"文件解密成功！\n\n已保存到:\n{output_file_path}")
+            # [NEW] 智能判断解密内容是文件还是ZIP压缩包
+            if decrypted_content.startswith(ZIP_MAGIC_BYTES):
+                # 是ZIP压缩包，进行解压
+                output_dir_path = input_file_path.replace(".enc", "")
+                self.update_decrypt_status(f"检测到文件夹，正在解压至 '{os.path.basename(output_dir_path)}'...",
+                                           "orange")
+                with zipfile.ZipFile(io.BytesIO(decrypted_content), 'r') as zip_ref:
+                    zip_ref.extractall(output_dir_path)
+
+                final_output_path = output_dir_path
+                success_message = "文件夹解密成功！"
+            else:
+                # 是普通文件，直接写入
+                output_file_path = input_file_path.replace(".enc", "") if input_file_path.endswith(
+                    ".enc") else f"{input_file_path}.dec"
+                with open(output_file_path, 'wb') as f:
+                    f.write(decrypted_content)
+
+                final_output_path = output_file_path
+                success_message = "文件解密成功！"
+
+            self.update_decrypt_status(f"解密成功! 已保存到 {os.path.basename(final_output_path)}", "green")
+            messagebox.showinfo("成功", f"{success_message}\n\n输出路径:\n{final_output_path}")
+
             with open("log.txt", 'a', encoding='utf-8') as f:
                 f.write(
-                    f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] DECRYPT | File: {output_file_path}\n")
+                    f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] DECRYPT | Path: {final_output_path}\n")
 
         except Exception as e:
             error_msg = f"解密失败: {e}"
@@ -347,3 +398,4 @@ if __name__ == "__main__":
     root = TkinterDnD.Tk()
     app = CryptoApp(root)
     root.mainloop()
+

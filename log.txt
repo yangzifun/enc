@@ -1,0 +1,1 @@
+[2025-07-14 15:30:22] ENCRYPT | Path: C:\Users\YZFN\Downloads\新建文件夹.enc | UUID: 694a2029-273c-4ad3-b744-e9f4a7fbffb1
