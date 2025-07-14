@@ -1,6 +1,6 @@
 name: Build and Release Executables
 
-# [BEST PRACTICE] a concurrency group to ensure only one run per tag is active at a time.
+# 最佳实践：添加并发控制，确保每个标签只运行一次最新的工作流
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -25,7 +25,6 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          # Using Python 3.10 for better compatibility, as your log showed an attempt with 3.12
           python-version: '3.10'
 
       - name: Install dependencies
@@ -34,26 +33,20 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # Build with PyInstaller, forcing bash shell for cross-platform compatibility
       - name: Build with PyInstaller
         shell: bash
         run: |
           echo "Listing files in the current directory:"
           ls -l
-
-          # Specify the main application script
           SCRIPT_NAME="encryptor_gui.py"
-
-          # Use different parameters based on the operating system
           if [ "${{ runner.os }}" == "Windows" ]; then
             pyinstaller --name="CryptoApp_Win" --onefile --windowed --icon="icon.ico" $SCRIPT_NAME
           elif [ "${{ runner.os }}" == "macOS" ]; then
             pyinstaller --name="CryptoApp_macOS" --onefile --windowed --icon="icon.icns" $SCRIPT_NAME
-          else # Linux
+          else
             pyinstaller --name="CryptoApp_Linux" --onefile --windowed $SCRIPT_NAME
           fi
 
-      # Prepare artifacts for release by renaming them consistently
       - name: Prepare artifact for release
         shell: bash
         run: |
@@ -62,14 +55,11 @@ jobs:
             mv CryptoApp_Win.exe ../CryptoApp-Windows-x86_64.exe
           elif [ "${{ runner.os }}" == "macOS" ]; then
             mv CryptoApp_macOS ../CryptoApp-macOS-x86_64
-          else # Linux
+          else
             mv CryptoApp_Linux ../CryptoApp-Linux-x86_64
           fi
           cd ..
-          echo "Final files prepared for release:"
-          ls -l
 
-      # Create a GitHub Release and upload the built executables as assets
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
@@ -79,4 +69,3 @@ jobs:
             CryptoApp-Linux-x86_64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
