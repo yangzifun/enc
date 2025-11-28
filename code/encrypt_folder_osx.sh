@@ -27,7 +27,7 @@ echo "-------------------------------------"
 
 # 定义变量
 # 统一的 UUID 和密钥获取接口
-KEY_AND_UUID_API_URL="https://rsa-uuid.api.yangzihome.space"
+KEY_AND_UUID_API_URL="https://rsa-uuid.api.yangzifun.org"
 # [REMOVED] 移除了不再需要的 UPLOAD_UUID_API_URL 变量
 
 # 定义临时文件名称

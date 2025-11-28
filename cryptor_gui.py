@@ -21,7 +21,7 @@ from cryptography.hazmat.backends import default_backend
 # --- 全局常量 ---
 
 VERSION = "v1.1"  # [MODIFIED] 版本号更新，代表功能增强
-API_ENDPOINT = "https://rsa-uuid.api.yangzihome.space"
+API_ENDPOINT = "https://rsa-uuid.api.yangzifun.org"
 OPENSSL_SALTED_MAGIC = b'Salted__'
 PBKDF2_ITERATIONS = 10000
 ZIP_MAGIC_BYTES = b'PK\x03\x04'  # [NEW] ZIP文件的起始魔术字节，用于识别

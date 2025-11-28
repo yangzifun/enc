@@ -1,10 +1,10 @@
 适用场景：用于对敏感文件进行加密传输，通过非对称加密传输
 
-> https://encrypt.yangzihome.space/
+> https://encrypt.yangzifun.org/
 
 1、本系统用于加密和解密指定文件，使用前需阅读并遵守第六项内容；
 
-2、执行脚本时将从接口`https://rsa-uuid.api.yangzihome.space`获取UUID、RSA 密钥对；
+2、执行脚本时将从接口`https://rsa-uuid.api.yangzifun.org`获取UUID、RSA 密钥对；
 
 请根据您的操作系统和具体需求，按照以下步骤操作：
 
