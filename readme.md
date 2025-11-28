@@ -135,7 +135,7 @@
 
 2.上传或拖拽文件、文件夹到指定位置，点击加密即可
 
-![74D4CAE0-D27C-433B-8AB1-A457B137B23B.png](https://s3.yangzihome.space/BBS/74D4CAE0-D27C-433B-8AB1-A457B137B23B.png)
+![74D4CAE0-D27C-433B-8AB1-A457B137B23B.png](https://s3.yangzifun.org/BBS/74D4CAE0-D27C-433B-8AB1-A457B137B23B.png)
 
 ## **五、重要注意事项：**
 
