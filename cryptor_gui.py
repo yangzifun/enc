@@ -20,7 +20,7 @@ from cryptography.hazmat.backends import default_backend
 
 # --- 全局常量 ---
 
-VERSION = "v1.1"  # [MODIFIED] 版本号更新，代表功能增强
+VERSION = "v1.0"  # [MODIFIED] 版本号更新，代表功能增强
 API_ENDPOINT = "https://rsa-uuid.api.yangzifun.org"
 OPENSSL_SALTED_MAGIC = b'Salted__'
 PBKDF2_ITERATIONS = 10000

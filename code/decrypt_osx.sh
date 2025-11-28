@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 定义版本号
-VERSION="v2.0-macos"
+VERSION="v1.0-macos"
 
 # 在脚本开始时输出版本信息
 echo "RSA 密钥解密脚本 (macOS) - 版本: $VERSION"

@@ -53,16 +53,14 @@
 
    ```
    chmod +x batch_encrypt_linux.sh
-   chmod +x encrypt_linux.sh
-                               
+   chmod +x encrypt_linux.sh       
    ```
-
+   
    ```
    chmod +x batch_encrypt_osx.sh
-   chmod +x encrypt_osx.sh
-                               
+   chmod +x encrypt_osx.sh                  
    ```
-
+   
 2. **执行批量加密：** 在终端中运行。您可以选择指定要加密的目录路径：
 
    ```
@@ -129,15 +127,7 @@
 
    这会将 `file.txt.enc` 解密为 `file.txt`（或原始文件名）。请确保私钥文件和加密文件路径正确。
 
-## 四、加解密程序GUI
-
-1.下载GUI 版本加解密程序：
-
-2.上传或拖拽文件、文件夹到指定位置，点击加密即可
-
-![74D4CAE0-D27C-433B-8AB1-A457B137B23B.png](https://s3.yangzifun.org/BBS/74D4CAE0-D27C-433B-8AB1-A457B137B23B.png)
-
-## **五、重要注意事项：**
+## 四、重要注意事项：
 
 - **UUID 和 私钥：** UUID是识别密钥的唯一凭证，而私钥是解密文件的唯一密钥。 **务必妥善保存UUID和下载的私钥文件，并确保私钥的私密性！** 丢失私钥将导致文件永远无法解密。
 - **网络连接：** 加密过程需要通过网络连接到加密服务器获取RSA密钥对和上传UUID与密钥。请确保您的计算机有稳定的网络连接。
@@ -145,3 +135,39 @@
 - **数据保存：** 本系统将定期清理数据库，如已使用加密软件，请尽快下载密钥。
 - **加密与解密环境：** 建议在与加密时相同的操作系统或类似的运行环境下进行解密，以避免潜在的兼容性问题。
 - **重要声明：** **该站点提供的脚本仅用于演练防加密勒索，其他用途及使用过程中数据丢失，与本服务无关！** 加密过程中，源文件不会被自动清除。如您需要清除源文件，请自行修改脚本以包含文件删除操作。
+
+## 五、v1.0-go-cli版本
+
+> 构建Go版本
+> CGO_ENABLED=0 go build -ldflags "-s -w" -o encryptor_pro .
+
+```
+RSA 密钥混合加密工具 - 版本: v1.0-go-cli
+----------------------------------------------------
+本工具可以加密指定的文件，或递归加密指定文件夹下的所有文件。
+每个成功加密的文件都会生成一个独立的密钥对和UUID。
+
+用法:
+  ./encryptor_pro [选项] <文件/文件夹路径1> [<文件/文件夹路径2> ...]
+
+选项:
+  -ext string
+    	可选：只加密指定扩展名的文件，用逗号分隔 (例: .txt,.jpg)
+  -workers int
+    	可选：指定并发执行的 worker 数量 (默认是CPU核心数)
+
+示例:
+  # 加密单个文件
+  ./encryptor_pro my_secret.txt
+
+  # 加密整个 'documents' 文件夹
+  ./encryptor_pro ./documents
+
+  # 只加密 'photos' 文件夹中的 .jpg 和 .png 文件
+  ./encryptor_pro -ext .jpg,.png ./photos
+
+  # 使用 8 个并发 worker 加密多个目标
+  ./encryptor_pro -workers 8 report.docx project_folder/
+
+```
+

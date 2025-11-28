@@ -1,6 +1,4 @@
-好的，作为一名资深的软件工程师，我明白你的需求。你需要修改这个用于批量加密文件夹内文件的 macOS Bash 脚本，移除其中一个已经废弃的功能：单独向 `https://encrypt.yangzihome.space/keygen_uuid.php` 上传 UUID 的步骤。
 
-这个修改将简化每个文件加密循环中的网络请求，使脚本更高效、更健壮。
 
 ### 核心修改点解析
 
@@ -19,7 +17,7 @@
 
 # 定义版本号
 # [MODIFIED] 版本号递增，以反映功能变更
-VERSION="v3.1"
+VERSION="v1.0"
 
 # 在脚本开始时输出版本信息
 echo "RSA 密钥文件夹加密脚本 (macOS) - 版本: $VERSION"

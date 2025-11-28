@@ -2,7 +2,7 @@
 
 # 定义版本号
 # [MODIFIED] 版本号递增，以反映功能变更
-VERSION="v3.1"
+VERSION="v1.0"
 
 # 在脚本开始时输出版本信息
 echo "RSA 密钥加密脚本 - 版本: $VERSION"
